@@ -3,15 +3,15 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDnTY1-vZIgh54y8FgUb5tvYtLYgpsKYZg',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'school-project-717c3.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'school-project-717c3',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'school-project-717c3.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '870007774740',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:870007774740:web:275e5410b27d66bb909101',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
-export const firebaseConfigured = Boolean(config.apiKey && config.projectId && config.appId);
+export const firebaseConfigured = Boolean(config.apiKey && config.authDomain && config.projectId && config.appId);
 
 function initApp() {
   if (!firebaseConfigured) return null;
