@@ -1,0 +1,152 @@
+openapi: 3.1.0
+info:
+  title: School Attendance Client API
+  version: 1.0.0
+  description: Read-only, tenant-scoped attendance API. Client writes and webhooks are not available in Phase 4.
+servers:
+  - url: https://api.example.com
+    description: Replace with API_BASE_URL
+security:
+  - ClientBearer: []
+paths:
+  /api/v1/health:
+    get:
+      security: []
+      summary: Read service readiness
+      responses:
+        '200': { description: Ready }
+        '503': { description: Service unavailable }
+  /api/v1/attendance:
+    get:
+      summary: List attendance
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: studentId, in: query, schema: { type: string } }
+        - { name: deviceUserId, in: query, schema: { type: string } }
+        - { name: deviceId, in: query, schema: { type: string } }
+        - { name: class, in: query, schema: { type: string } }
+        - { name: section, in: query, schema: { type: string } }
+        - { name: method, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+      responses: { '200': { $ref: '#/components/responses/Paged' }, '400': { $ref: '#/components/responses/Error' }, '401': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' }, '429': { $ref: '#/components/responses/Error' } }
+  /api/v1/attendance/today:
+    get:
+      summary: List attendance for today's Asia/Kolkata date
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { $ref: '#/components/responses/Paged' }, '401': { $ref: '#/components/responses/Error' }, '429': { $ref: '#/components/responses/Error' } }
+  /api/v1/students:
+    get:
+      summary: List students
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: class, in: query, schema: { type: string } }
+        - { name: section, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+      responses: { '200': { $ref: '#/components/responses/Paged' }, '401': { $ref: '#/components/responses/Error' }, '429': { $ref: '#/components/responses/Error' } }
+  /api/v1/students/{studentId}:
+    get:
+      summary: Read one student
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '400': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+  /api/v1/students/{studentId}/attendance:
+    get:
+      summary: Read one student's attendance history
+      parameters:
+        - { $ref: '#/components/parameters/StudentId' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses: { '200': { $ref: '#/components/responses/Paged' }, '401': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+  /api/v1/devices:
+    get:
+      summary: List safe device summaries
+      responses: { '200': { $ref: '#/components/responses/Success' }, '401': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' } }
+  /api/v1/admin/clients:
+    get:
+      security: [{ AdminFirebaseBearer: [] }]
+      summary: List API clients and request metrics (dashboard admin only)
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' } }
+    post:
+      security: [{ AdminFirebaseBearer: [] }]
+      summary: Create client and reveal its API key once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientName, schoolName, tenantId]
+              properties:
+                clientName: { type: string, maxLength: 120 }
+                schoolName: { type: string, maxLength: 120 }
+                tenantId: { type: string, pattern: '^[A-Za-z0-9_-]{1,128}$' }
+                contactName: { type: string, maxLength: 120 }
+                contactEmail: { type: string, format: email }
+                permissions: { type: array, items: { type: string, enum: [attendance:read, students:read, devices:read] } }
+                rateLimit: { type: integer, minimum: 1, maximum: 100000, default: 60 }
+                expiresAt: { type: string, format: date-time }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '400': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' } }
+  /api/v1/admin/clients/{clientId}/key:
+    post:
+      security: [{ AdminFirebaseBearer: [] }]
+      summary: Rotate a client API key and reveal replacement once
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { $ref: '#/components/responses/Success' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+  /api/v1/admin/clients/{clientId}/status:
+    patch:
+      security: [{ AdminFirebaseBearer: [] }]
+      summary: Activate, disable or revoke a client credential
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, disabled, revoked] } } }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '400': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+  /api/v1/admin/clients/{clientId}/permissions:
+    patch:
+      security: [{ AdminFirebaseBearer: [] }]
+      summary: Change Phase 4 read permissions
+      parameters: [{ name: clientId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [permissions], properties: { permissions: { type: array, items: { type: string, enum: [attendance:read, students:read, devices:read] } } } }
+      responses: { '200': { $ref: '#/components/responses/Success' }, '400': { $ref: '#/components/responses/Error' }, '403': { $ref: '#/components/responses/Error' }, '404': { $ref: '#/components/responses/Error' } }
+components:
+  securitySchemes:
+    ClientBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: SCA client key
+    AdminFirebaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token with admin custom claim
+  parameters:
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    StudentId: { name: studentId, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,128}$' } }
+  responses:
+    Success:
+      description: Successful response
+      headers: { X-Request-ID: { schema: { type: string } } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } }
+    Paged:
+      description: Paginated response
+      headers: { X-Request-ID: { schema: { type: string } }, X-RateLimit-Limit: { schema: { type: integer } }, X-RateLimit-Remaining: { schema: { type: integer } }, X-RateLimit-Reset: { schema: { type: integer } } }
+      content: { application/json: { schema: { allOf: [{ $ref: '#/components/schemas/Success' }, { type: object, properties: { pagination: { $ref: '#/components/schemas/Pagination' } } }] } } }
+    Error:
+      description: Error response
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  schemas:
+    Success: { type: object, required: [success, data], properties: { success: { const: true }, data: {} } }
+    Error: { type: object, required: [success, error], properties: { success: { const: false }, error: { type: object, required: [code, message], properties: { code: { type: string }, message: { type: string } } }, requestId: { type: string } } }
+    Pagination: { type: object, required: [page, limit, total, hasMore], properties: { page: { type: integer }, limit: { type: integer }, total: { type: integer }, hasMore: { type: boolean } } }

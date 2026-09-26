@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function superAdmin() { return signedIn() && ((('role' in request.auth.token) && request.auth.token.role == 'super_admin') || (('roles' in request.auth.token) && request.auth.token.roles.hasAny(['super_admin']))); }
+    function platformAdmin() { return signedIn() && (superAdmin() || (('admin' in request.auth.token) && request.auth.token.admin == true) || (('role' in request.auth.token) && request.auth.token.role == 'admin') || (('role' in request.auth.token) && request.auth.token.role == 'school_admin')); }
+    function roleIn(roles) { return signedIn() && ((('role' in request.auth.token) && request.auth.token.role in roles) || (('roles' in request.auth.token) && request.auth.token.roles.hasAny(roles)) || (('admin' in request.auth.token) && request.auth.token.admin == true)); }
+    function scopeMatch(data) {
+      return signedIn() && (superAdmin() ||
+        (('schoolId' in data) && ('schoolId' in request.auth.token) && data.schoolId == request.auth.token.schoolId) ||
+        (('tenantId' in data) && ('tenantId' in request.auth.token) && data.tenantId == request.auth.token.tenantId));
+    }
+    function assignedTeacher(data) {
+      let teacherId = (('teacherId' in request.auth.token) && request.auth.token.teacherId is string) ? request.auth.token.teacherId : request.auth.uid;
+      let assignmentId = data.schoolId + '__' + data.sessionId + '__' + data.sectionId + '__' + teacherId;
+      return ('schoolId' in data) && ('sessionId' in data) && ('sectionId' in data) &&
+        exists(/databases/$(database)/documents/class_teacher_assignments/$(assignmentId)) &&
+        get(/databases/$(database)/documents/class_teacher_assignments/$(assignmentId)).data.status == 'active';
+    }
+
+    match /schools/{schoolId} {
+      allow read: if superAdmin() || (roleIn(['school_admin','principal','teacher','operator']) && request.auth.token.schoolId == schoolId);
+      allow write: if false;
+    }
+    match /academic_sessions/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher','operator']);
+      allow write: if false;
+    }
+    match /classes/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher','operator']);
+      allow write: if false;
+    }
+    match /sections/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher','operator']);
+      allow write: if false;
+    }
+    match /teachers/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal']);
+      allow write: if false;
+    }
+    match /students/{id} {
+      allow read: if scopeMatch(resource.data) && (roleIn(['super_admin','school_admin','principal','operator']) || (roleIn(['teacher']) && assignedTeacher(resource.data)));
+      allow write: if false;
+    }
+    match /school_users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || (scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal'])));
+      allow write: if false;
+    }
+    match /class_teacher_assignments/{id} {
+      allow read: if scopeMatch(resource.data) && (roleIn(['super_admin','school_admin','principal']) || resource.data.teacherId == request.auth.token.teacherId || resource.data.teacherId == request.auth.uid);
+      allow write: if false;
+    }
+    match /student_device_links/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','operator']);
+      allow write: if false;
+    }
+    match /devices/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','operator']);
+      allow write: if false;
+    }
+    match /device_users/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','operator']);
+      allow write: if false;
+    }
+    match /attendance/{id} {
+      allow read: if scopeMatch(resource.data) && (roleIn(['super_admin','school_admin','principal','operator']) || (roleIn(['teacher']) && assignedTeacher(resource.data)));
+      allow write: if false;
+    }
+    match /attendance_policies/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher']);
+      allow write: if false;
+    }
+    match /school_holidays/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher']);
+      allow write: if false;
+    }
+    match /attendance_adjustments/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal']);
+      allow write: if false;
+    }
+    match /attendance_daily_summaries/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin','principal','teacher']);
+      allow write: if false;
+    }
+    match /audit_logs/{id} {
+      allow read: if scopeMatch(resource.data) && roleIn(['super_admin','school_admin']);
+      allow write: if false;
+    }
+    match /raw_device_logs/{id} {
+      allow read, write: if false;
+    }
+    match /sync_logs/{id} {
+      allow read, write: if false;
+    }
+    match /device_user_sync_logs/{id} {
+      allow read, write: if false;
+    }
+    match /enrollment_audit_logs/{id} {
+      allow read, write: if false;
+    }
+    match /device_commands/{id} {
+      allow read, write: if false;
+    }
+    match /device_command_audit_logs/{id} {
+      allow read, write: if false;
+    }
+    match /api_clients/{id} { allow read, write: if false; }
+    match /api_rate_limits/{id} { allow read, write: if false; }
+    match /api_logs/{id} { allow read, write: if false; }
+    match /webhook_endpoints/{id} { allow read, write: if false; }
+    match /webhook_deliveries/{id} { allow read, write: if false; }
+    match /webhook_rate_limits/{id} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

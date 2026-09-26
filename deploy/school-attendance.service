@@ -1,0 +1,32 @@
+[Unit]
+Description=School Attendance Platform - Backend & T800 TCP Listener
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=attendance
+Group=attendance
+WorkingDirectory=/opt/school-attendance/backend
+EnvironmentFile=-/opt/school-attendance/backend/.env
+ExecStart=/usr/bin/node --env-file-if-exists=.env --experimental-strip-types src/server.ts
+Restart=always
+RestartSec=5s
+KillMode=process
+
+# Security and isolation
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+# File descriptor limits for TCP connections
+LimitNOFILE=65535
+
+# Logging via journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=school-attendance
+
+[Install]
+WantedBy=multi-user.target

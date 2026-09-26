@@ -1,0 +1,16 @@
+{
+  "name": "school-attendance-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --experimental-strip-types --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env --experimental-strip-types src/server.ts",
+    "build": "tsc --project tsconfig.json",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test-client": "node --env-file-if-exists=.env --experimental-strip-types scripts/test-tcp-client.ts"
+  },
+  "dependencies": { "firebase-admin": "^13.6.0" },
+  "devDependencies": { "@types/node": "^22.19.0", "typescript": "^5.9.3" }
+}

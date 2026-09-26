@@ -1,0 +1,32 @@
+# Dependencies and package caches
+node_modules/
+.npm-cache/
+.pnpm-store/
+
+# Build outputs
+dist/
+functions/lib/
+
+# Environment files
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Credentials, secrets, and keys
+*service-account*.json
+service-account.json
+credentials.json
+*.pem
+*.key
+*.cert
+*.crt
+
+# Temporary & scratch files
+scratch*
+*.log
+.cora/
+.DS_Store
+Thumbs.db
