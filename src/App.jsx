@@ -13,8 +13,8 @@ import DeviceManagement from './components/DeviceManagement.jsx';
 import SchoolManagement from './components/SchoolManagement.jsx';
 
 const navigation = [
-  { label: 'Overview', items: [{ name: 'Dashboard', icon: Gauge }, { name: 'Students', icon: Users }, { name: 'Teachers', icon: Users }, { name: 'Classes & Sections', icon: ClipboardList }, { name: 'Attendance', icon: ClipboardList }, { name: 'Reports', icon: Activity }, { name: 'Devices', icon: Monitor }, { name: 'Device Enrollment', icon: FingerprintIcon }] },
-  { label: 'Workspace', items: [{ name: 'API Management', icon: Activity }, { name: 'Settings', icon: Settings }] },
+  { label: 'Overview', items: [{ name: 'Dashboard', icon: Gauge }, { name: 'Students', icon: Users }, { name: 'Attendance', icon: ClipboardList }, { name: 'Devices', icon: Monitor }] },
+  { label: 'Workspace', items: [{ name: 'API Management', icon: Activity }] },
 ];
 function allowedNavigation(role) {
   const roles = {
