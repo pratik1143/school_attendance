@@ -1,3 +1,4 @@
+import { saveStudentRecord } from "./adminApi.js";
 import { collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase.js';
 import { readCollection, watchCollection, queryForSchool } from './common.js';
@@ -8,7 +9,7 @@ export function watchStudents(onData, onError) {
   return watchCollection('students', 'name', onData, onError);
 }
 export async function saveStudent(student) {
-  throw new Error('Student updates must use the authenticated school management API.');
+  return saveStudentRecord(student);
 }
 export async function getStudent(id) { if (!db) throw new Error('Firebase is not configured.'); const snap = await getDoc(doc(db, 'students', id)); return snap.exists() ? { ...snap.data(), id: snap.id } : null; }
 export async function studentAttendance(id) {

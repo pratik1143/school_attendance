@@ -5,6 +5,8 @@ import { markConnected, markDisconnected, markPacketSeen } from '../services/dev
 import { captureChunk, rawFields } from './packetLogger.ts';
 import { ConnectionManager } from './connectionManager.ts';
 import { TcpStreamBuffer } from './tcpStreamBuffer.ts';
+import { looksLikeFkRequest, parseFkRequest } from './fkWebProtocol.ts';
+import { handleFkRequest } from '../services/fkRequestHandler.ts';
 import { logger } from '../utils/logger.ts';
 
 export type ListenerState = { running: boolean; activeConnections: ReturnType<ConnectionManager['active']>; lastPacketAt: string | null };
@@ -29,6 +31,9 @@ export function createT800Server(manager = new ConnectionManager()) {
     const connectionReady = markConnected({ deviceId: env.deviceId, connectionId, remoteIp });
 
     let writeQueue = Promise.resolve();
+    let pending: Buffer = Buffer.alloc(0);
+    let pendingRawLogId: string | null = null;
+    let rawLogMissing = false;
     socket.on('data', (chunk: Buffer) => {
       // Log receipt immediately, before Firestore work; never put raw biometric
       // or unknown protocol bytes in console logs. The restricted raw log keeps
@@ -65,10 +70,35 @@ export function createT800Server(manager = new ConnectionManager()) {
         manager.updatePacket(connectionId, record.bytes.length, receivedAt, record.sequence);
         lastPacketAt = receivedAt.toISOString();
         await markPacketSeen({ deviceId: env.deviceId, connectionId, remoteIp });
+        let rawLogId: string | null = null;
         try {
-          await captureChunk({ ...fields, connectionId, remoteIp, deviceId: env.deviceId, receivedAt: record.receivedAt });
+          rawLogId = await captureChunk({ ...fields, connectionId, remoteIp, deviceId: env.deviceId, receivedAt: record.receivedAt });
         } catch (error) {
           logger.error('Raw TCP capture could not be persisted.', { connectionId, bytes: chunk.length, error: error instanceof Error ? error.message : String(error) });
+        }
+        // FK web-push requests (HTTP over this port) may span several chunks.
+        pending = Buffer.concat([pending, record.bytes]);
+        if (rawLogId) pendingRawLogId = rawLogId; else rawLogMissing = true;
+        while (pending.length && looksLikeFkRequest(pending)) {
+          const result = parseFkRequest(pending);
+          if (!result.complete) break;
+          pending = pending.subarray(result.consumed);
+          if ('error' in result) {
+            logger.warn('Malformed FK request; closing connection.', { connectionId, error: result.error });
+            socket.destroy();
+            return;
+          }
+          const reply = await handleFkRequest(result.request, { connectionId, rawLogId: rawLogMissing ? null : pendingRawLogId, receivedAt });
+          rawLogMissing = false;
+          pendingRawLogId = null;
+          if (!socket.destroyed) {
+            socket.write(reply);
+            state.bytesSent += reply.length;
+          }
+        }
+        if (pending.length > env.maxPacketBytes) {
+          logger.warn('Incomplete request exceeds size limit; closing connection.', { connectionId, bytes: pending.length });
+          socket.destroy();
         }
       }).catch((error) => logger.error('TCP chunk processing failed.', { connectionId, error: String(error) })).finally(() => {
         if (!socket.destroyed) socket.resume();

@@ -143,6 +143,41 @@ async function handleAdmin(req: IncomingMessage, method: string, path: string): 
     throw error(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
   }
   if (!await verifyAdminToken(bearer(req))) throw error(403, 'ADMIN_REQUIRED', 'Administrator access is required.');
+  // Testing aid: an admin can remove attendance records so a device punch can be re-tested.
+  if (path === '/api/v1/admin/attendance' && method === 'DELETE') {
+    const body = await readBody(req);
+    const ids = Array.isArray(body.ids) ? body.ids.filter((id): id is string => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id)).slice(0, 500) : [];
+    if (!ids.length) throw error(400, 'INVALID_IDS', 'Provide ids: a non-empty array of attendance IDs.');
+    const db = getDb(); const batch = db.batch();
+    ids.forEach((id) => batch.delete(db.collection('attendance').doc(id)));
+    await batch.commit();
+    return success({ deleted: ids.length });
+  }
+  if (path === '/api/v1/admin/students' && method === 'POST') {
+    const body = await readBody(req);
+    const field = (name: string, max = 120) => typeof body[name] === 'string' ? (body[name] as string).trim().slice(0, max) : '';
+    const studentId = field('studentId', 128);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(studentId)) throw error(400, 'INVALID_STUDENT_ID', 'Student ID may use letters, numbers, - and _ only.');
+    const deviceUserId = field('deviceUserId', 32);
+    if (deviceUserId && !/^[0-9]{1,32}$/.test(deviceUserId)) throw error(400, 'INVALID_DEVICE_USER_ID', 'Device user ID must be the number shown on the device.');
+    const db = getDb();
+    if (deviceUserId) {
+      const clash = await db.collection('students').where('deviceUserId', '==', deviceUserId).limit(2).get();
+      if (clash.docs.some((doc) => doc.id !== studentId)) throw error(409, 'DEVICE_USER_ID_TAKEN', `Device user ID ${deviceUserId} is already assigned to another student.`);
+    }
+    const ref = db.collection('students').doc(studentId); const existing = await ref.get();
+    await ref.set({
+      studentId, name: field('name'), class: field('class', 20), section: field('section', 20), deviceUserId,
+      status: body.status === 'inactive' ? 'inactive' : 'active',
+      updatedAt: FieldValue.serverTimestamp(), ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
+    }, { merge: true });
+    return success({ studentId, created: !existing.exists });
+  }
+  const studentDelete = path.match(/^\/api\/v1\/admin\/students\/([A-Za-z0-9_-]{1,128})$/);
+  if (studentDelete && method === 'DELETE') {
+    await getDb().collection('students').doc(studentDelete[1]).delete();
+    return success({ studentId: studentDelete[1], deleted: true });
+  }
   if (path === '/api/v1/admin/device-enrollment' && method === 'GET') return success(await listDeviceEnrollment());
   if (path === '/api/v1/admin/device-enrollment/manual' && method === 'POST') {
     const adminUserId = await getAdminUserId(bearer(req)); if (!adminUserId) throw error(403, 'ADMIN_REQUIRED', 'Administrator access is required.');
@@ -220,7 +255,7 @@ export function createApiServer() {
         const requestId = requestedId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestedId) && !apiSecretPattern.test(requestedId) ? requestedId : randomUUID();
         apiSecretPattern.lastIndex = 0;
         res.setHeader('X-Request-ID', requestId); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains'); res.setHeader('Cache-Control', 'no-store');
-        const origin = req.headers.origin; if (origin) { if (env.corsOrigins.length && env.corsOrigins.includes(origin)) { res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin'); res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Request-ID'); res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS'); } else if (env.corsOrigins.length) { json(res, 403, failure(error(403, 'CORS_ORIGIN_DENIED', 'Origin is not allowed.'))); return; } }
+        const origin = req.headers.origin; if (origin) { if (env.corsOrigins.length && env.corsOrigins.includes(origin)) { res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin'); res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Request-ID'); res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS'); } else if (env.corsOrigins.length) { json(res, 403, failure(error(403, 'CORS_ORIGIN_DENIED', 'Origin is not allowed.'))); return; } }
         if (req.method === 'OPTIONS') { res.writeHead(204).end(); return; }
         const start = Date.now(); let path = '/'; let clientId = ''; let statusCode = 500; let errorCode: string | null = null; const logEnabled = true;
         res.once('finish', () => { if (logEnabled && path.startsWith('/api/v1/')) void writeApiLog(buildApiLogRecord({ requestId, clientId: clientId || null, method: req.method || 'GET', path, statusCode, responseTime: Date.now() - start, ip: req.socket.remoteAddress || '', userAgent: String(req.headers['user-agent'] || '').slice(0, 256), errorCode })); });

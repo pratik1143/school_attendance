@@ -20,12 +20,7 @@ export async function captureChunk(input: RawLog & { deviceId: string; receivedA
     sequence: input.sequence,
     sensitiveRedacted,
   };
-  // Persist evidence before detection or parsing so future parser failures cannot
-  // discard the original stream chunk.
-  const id = await saveRawLog(safe);
-  const detection = detectProtocol(Buffer.from(input.rawBase64, 'base64'));
-  const parsed = parseProtocol(Buffer.from(input.rawBase64, 'base64'));
-  logger.info('TCP raw chunk persisted', { source: 'tcp_listener', rawLogId: id, connectionId: input.connectionId, remoteIp: input.remoteIp, byteLength: input.byteLength, protocol: detection.protocol, parsed: parsed.parsed });
+  // Log diagnostics before persisting so captures are visible even when Firestore is unavailable.
   if (env.logRawPackets || env.diagnosticMode) {
     logger.info('Raw TCP diagnostic', {
       connectionId: input.connectionId,
@@ -38,6 +33,12 @@ export async function captureChunk(input: RawLog & { deviceId: string; receivedA
       ascii: redactPrintableSecrets(input.printableAscii),
     });
   }
+  // Persist evidence before detection or parsing so future parser failures cannot
+  // discard the original stream chunk.
+  const id = await saveRawLog(safe);
+  const detection = detectProtocol(Buffer.from(input.rawBase64, 'base64'));
+  const parsed = parseProtocol(Buffer.from(input.rawBase64, 'base64'));
+  logger.info('TCP raw chunk persisted', { source: 'tcp_listener', rawLogId: id, connectionId: input.connectionId, remoteIp: input.remoteIp, byteLength: input.byteLength, protocol: detection.protocol, parsed: parsed.parsed });
   await writeSyncLog({ deviceId: input.deviceId, connectionId: input.connectionId, rawLogId: id, eventType: 'RAW_PACKET_RECEIVED', status: 'success', message: `Captured ${input.byteLength} raw TCP bytes in sequence ${input.sequence}; parser status unknown.` });
   await writeSyncLog({ deviceId: input.deviceId, connectionId: input.connectionId, rawLogId: id, eventType: 'PARSER_UNKNOWN', status: 'warning', message: 'No protocol has been verified; attendance ingestion was not called.' });
   return id;

@@ -72,12 +72,13 @@ export async function saveAttendanceIfNew(event: NormalizedAttendanceEvent): Pro
     ]);
     const linkedStudents = exactLinks.docs.filter((link) => tenantId && link.get('tenantId') === tenantId).map((link) => ({ documentId: String(link.get('studentId') || ''), studentId: link.get('studentId'), deviceId: event.deviceId })).filter((link) => link.documentId);
     const studentDocs = new Map([...(exactStudents?.docs || []), ...matches.docs].map((student) => [student.id, student]));
-    const tenantMatches = [...studentDocs.values()].filter((student) => Boolean(tenantId) && student.get('tenantId') === tenantId && (!student.get('deviceId') || student.get('deviceId') === event.deviceId));
+    const tenantMatches = [...studentDocs.values()].filter((student) => (tenantId ? student.get('tenantId') === tenantId : !student.get('tenantId')) &&(!student.get('deviceId') || student.get('deviceId') === event.deviceId));
     const scopedCandidates = linkedStudents.length ? linkedStudents : tenantMatches.map((student) => ({ documentId: student.id, studentId: student.get('studentId'), deviceId: student.get('deviceId') }));
     let mapping = resolveStudentMapping(scopedCandidates, event.deviceId);
     if (!linkedStudents.length && mapping.mappingStatus === 'mapped' && !tenantMatches.some((student) => student.get('deviceId') === event.deviceId)) {
       const deviceScopes = new Set(knownDeviceUsers.docs.filter((known) => known.get('tenantId') === tenantId).map((known) => String(known.get('deviceId') || '')));
-      if (!tenantId || matches.size >= 3 || knownDeviceUsers.size >= 3 || deviceScopes.size > 1 || (deviceScopes.size === 1 && !deviceScopes.has(event.deviceId))) mapping = { studentId: null, mappingStatus: 'unmapped' };
+      // Without a tenant (single-school setup) only untenanted students are candidates.
+      if (matches.size >= 3 || knownDeviceUsers.size >= 3 || deviceScopes.size > 1 || (deviceScopes.size === 1 && !deviceScopes.has(event.deviceId))) mapping = { studentId: null, mappingStatus: 'unmapped' };
     }
     const schoolTimezone = String(schoolDoc?.get('timezone') || 'Asia/Kolkata'); const schoolDate = localDateKey(event.timestamp, schoolTimezone);
     const activeSession = activeSessions?.docs.find((session) => String(session.get('startDate') || '') <= schoolDate && String(session.get('endDate') || '') >= schoolDate);

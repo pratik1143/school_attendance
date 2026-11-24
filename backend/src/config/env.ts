@@ -52,6 +52,7 @@ export const env = Object.freeze({
   projectId: text('FIREBASE_PROJECT_ID', ''),
   deviceId: text('T800_DEVICE_ID', 'T800_01'),
   cloudId: text('T800_CLOUD_ID', '02010A964EDF2575'),
+  deviceUtcOffset: text('T800_UTC_OFFSET', '+05:30'),
   deviceName: text('T800_DEVICE_NAME', 'Main Gate T800'),
   model: text('T800_MODEL', 'T800'),
   connectionType: text('T800_CONNECTION_TYPE', 'wifi'),
