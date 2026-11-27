@@ -1,0 +1,60 @@
+/* Students / Teachers / Attendance pages (SmartAiG white theme). */
+
+.head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stat-grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1100px){.stat-grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.stat-grid.four{grid-template-columns:1fr}}
+
+.stack{display:flex;flex-direction:column;gap:3px;min-width:0}
+.small{font-size:12px}.muted-t{color:var(--muted,#5b6b82)}
+.right{text-align:right}
+th.right{text-align:right}
+.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:var(--well,#eff3f9);color:var(--ink-2,#2c3a50);font-size:12px;font-weight:600;white-space:nowrap}
+
+/* status pills */
+.sp{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;width:max-content}
+.sp-small{padding:3px 9px;font-size:11.5px}
+.sp-present{background:#e5f5ec;color:#1e7a4a}
+.sp-late{background:#fdf3dc;color:#9a6a08}
+.sp-absent{background:#fdebe7;color:#b3341f}
+.sp-leave{background:#e9f0fd;color:#0b5bd3}
+.sp-none{background:#eff3f9;color:#8a98ac}
+
+/* segmented control */
+.seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:#fff;border:1px solid var(--line,#e3e8f0);max-width:100%;overflow-x:auto}
+.seg button{border:0;background:transparent;color:var(--muted,#5b6b82);font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;transition:background .15s,color .15s}
+.seg button:hover{color:var(--navy,#0f1d38)}
+.seg button.on{background:var(--navy,#0f1d38);color:#fff}
+.seg button em{font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(15,29,56,.08)}
+.seg button.on em{background:rgba(255,255,255,.2)}
+.tabs-row{padding:0 20px 14px;border-bottom:1px solid var(--line,#e3e8f0)}
+.switch-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.day-label{margin-left:auto;color:var(--muted,#5b6b82);font-size:13px;font-weight:500}
+
+/* last-7-days strip */
+.mini-days{display:inline-flex;gap:4px;align-items:center}
+.md{width:14px;height:22px;border-radius:5px;background:#eff3f9;display:block}
+.md-present{background:#3fb37a}.md-late{background:#f0b84a}.md-absent{background:#f08d7a}.md-leave{background:#5b8def}
+
+.table-toolbar.tall{align-items:center}
+.row-icons{display:inline-flex;gap:4px}
+.row-icons button,.row-delete{width:32px;height:32px;display:inline-grid;place-items:center;border:0;border-radius:10px;background:transparent;color:#4a5a72;cursor:pointer;transition:background .15s,color .15s}
+.row-icons button:hover,.row-delete:hover{background:#eef3fb;color:#0b5bd3}
+.row-icons button.danger:hover,.row-delete:hover{background:#fdebe7;color:#b3341f}
+
+.day-nav{display:inline-flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--line,#e3e8f0);border-radius:999px;background:#fff}
+.day-nav button{width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:#2c3a50;display:grid;place-items:center;cursor:pointer}
+.day-nav button:hover:not(:disabled){background:#eef3fb}.day-nav button:disabled{opacity:.35;cursor:not-allowed}
+.day-nav input{border:0!important;background:transparent!important;height:34px;font-size:13px!important;font-weight:600;color:var(--navy,#0f1d38)!important;padding:0 6px;box-shadow:none!important}
+
+.cutoff{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted,#5b6b82);font-weight:600}
+.cutoff input{height:34px;font-size:12.5px!important;padding:0 8px}
+.mark-select{height:34px!important;font-size:12.5px!important;min-width:132px;padding:0 10px}
+.hint{margin:14px 4px 0;font-size:12.5px;color:var(--muted,#5b6b82)}
+
+.detail-counts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 22px 0}
+.detail-counts span{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--surface-2,#f7f9fc);border:1px solid var(--line,#e3e8f0);font-size:12px;color:var(--muted,#5b6b82)}
+.detail-counts b{font-family:var(--font-display,Outfit,sans-serif);font-size:22px;font-weight:600;color:var(--navy,#0f1d38)}
+.history-row .stack strong{font-size:13px}.history-row .stack small{font-size:12px}
+.history-list{max-height:300px}
+@media (max-width:700px){.day-label{margin-left:0;width:100%}.head-actions{width:100%}}

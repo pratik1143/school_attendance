@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, ArrowDownToLine, ArrowUpRight, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, ClipboardList, Clock3, Copy, Fingerprint, Gauge, KeyRound, LogOut, Menu, Monitor, Plus, RotateCw, Search, Send, Settings, ShieldCheck, Sparkles, Trash2, Users, Wifi, X, UserPlus, Link2, Fingerprint as FingerprintIcon } from 'lucide-react';
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, db, firebaseConfigured, googleProvider } from './lib/firebase.js';
 import { listStudents, saveStudent, studentAttendance } from './services/students.js';
 import { listAttendance, watchAttendance } from './services/attendance.js';
@@ -10,10 +10,17 @@ import { asDate, formatDate, formatTime } from './services/common.js';
 import { deleteAttendanceRecords, deleteStudentRecord } from './services/adminApi.js';
 import { useCollection } from './hooks/useCollection.js';
 import DeviceManagement from './components/DeviceManagement.jsx';
+import { Briefcase } from 'lucide-react';
+import { useMemo } from 'react';
+import PeoplePage from './pages/PeoplePage.jsx';
+import AttendancePage from './pages/AttendancePage.jsx';
+import { listTeachers, watchTeachers } from './services/teachers.js';
+import { watchMarks } from './services/marks.js';
+import { buildPunchIndex, marksIndex } from './pages/attendanceLogic.js';
 import SchoolManagement from './components/SchoolManagement.jsx';
 
 const navigation = [
-  { label: 'Overview', items: [{ name: 'Dashboard', icon: Gauge }, { name: 'Students', icon: Users }, { name: 'Attendance', icon: ClipboardList }, { name: 'Devices', icon: Monitor }] },
+  { label: 'Overview', items: [{ name: 'Dashboard', icon: Gauge }, { name: 'Students', icon: Users }, { name: 'Teachers', icon: Briefcase }, { name: 'Attendance', icon: ClipboardList }, { name: 'Devices', icon: Monitor }] },
   { label: 'Workspace', items: [{ name: 'API Management', icon: Activity }] },
 ];
 function allowedNavigation(role) {
@@ -66,7 +73,7 @@ function Login({ onLogin, error }) {
   return (
     <main className="login-screen">
       <div className="login-art">
-        <div className="brand-mark">A</div>
+        <img className="brand-logo" src="/smartaig-logo.png" alt="SmartAiG - Administrative Info Group" />
         <div className="art-copy">
           <span className="eyebrow">SCHOOL ATTENDANCE</span>
           <h1>Every day,<br />accounted for.</h1>
@@ -103,7 +110,7 @@ function Login({ onLogin, error }) {
             {isSignUp ? (
               <span>Already have an account? <button type="button" style={{ background: 'none', border: 0, color: '#4263eb', fontWeight: 700, cursor: 'pointer', padding: 0 }} onClick={() => setIsSignUp(false)}>Sign in</button></span>
             ) : (
-              <span>Need an account? <button type="button" style={{ background: 'none', border: 0, color: '#4263eb', fontWeight: 700, cursor: 'pointer', padding: 0 }} onClick={() => setIsSignUp(true)}>Create one</button></span>
+              <span>Accounts are created by your school administrator.</span>
             )}
           </div>
           <div className="divider"><span>or</span></div>
@@ -116,7 +123,7 @@ function Login({ onLogin, error }) {
   );
 }
 function Header({ title, user, onLogout, onMenu }) { const [menu, setMenu] = useState(false); return <header className="topbar"><div className="top-left"><button className="icon-button mobile-menu" onClick={onMenu}><Menu size={19} /></button><span className="crumb">School workspace</span><ChevronRight size={14} className="crumb-chevron" /><strong>{title}</strong></div><div className="top-actions"><span className="top-date"><CalendarDays size={15} />{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span><button className="icon-button" aria-label="Notifications"><Bell size={18} /><i className="notif-dot" /></button><div className="profile-wrap"><button className="profile-button" onClick={() => setMenu(!menu)}><span className="avatar">{(user?.displayName || user?.email || 'S')[0].toUpperCase()}</span><span className="profile-text"><strong>{user?.displayName || 'School admin'}</strong><small>Administrator</small></span><ChevronDown size={15} /></button>{menu && <div className="profile-menu"><div className="profile-email">{user?.email}</div><button onClick={onLogout}><LogOut size={15} /> Sign out</button></div>}</div></div></header>; }
-function Sidebar({ page, setPage, onLogout, open, setOpen, role }) { const menu = allowedNavigation(role); return <><div className={`mobile-scrim ${open ? 'show' : ''}`} onClick={() => setOpen(false)} /><aside className={`sidebar ${open ? 'open' : ''}`}><button className="brand" onClick={() => { setPage('Dashboard'); setOpen(false); }}><span className="brand-mark">A</span><span><strong>attendance</strong><small>SCHOOL CONSOLE</small></span></button><div className="school-switch"><span className="school-avatar">S</span><span><strong>School workspace</strong><small>{role?.replaceAll('_', ' ') || 'Unassigned user'}</small></span><ChevronDown size={15} /></div><nav>{menu.map((group) => <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{group.items.map(({ name, icon: Icon }) => <button key={name} className={`nav-link ${page === name ? 'active' : ''}`} onClick={() => { setPage(name); setOpen(false); }}><Icon size={17} strokeWidth={1.8} /><span>{name}</span>{name === 'Devices' && <i className="nav-indicator" />}</button>)}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={17} /></div><strong>Need a hand?</strong><span>Visit the help center for quick answers.</span><button>Open help center <ArrowUpRight size={13} /></button></div><button className="nav-link signout" onClick={onLogout}><LogOut size={17} />Sign out</button><div className="sidebar-foot"><span className="foot-avatar">SW</span><span><strong>School workspace</strong><small>Attendance dashboard · v1.0</small></span><ChevronDown size={14} /></div></div></aside></>; }
+function Sidebar({ page, setPage, onLogout, open, setOpen, role }) { const menu = allowedNavigation(role); return <><div className={`mobile-scrim ${open ? 'show' : ''}`} onClick={() => setOpen(false)} /><aside className={`sidebar ${open ? 'open' : ''}`}><button className="brand" onClick={() => { setPage('Dashboard'); setOpen(false); }}><img className="brand-logo" src="/smartaig-logo.png" alt="SmartAiG - Administrative Info Group" /></button><div className="school-switch"><span className="school-avatar">S</span><span><strong>School workspace</strong><small>{role?.replaceAll('_', ' ') || 'Unassigned user'}</small></span><ChevronDown size={15} /></div><nav>{menu.map((group) => <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{group.items.map(({ name, icon: Icon }) => <button key={name} className={`nav-link ${page === name ? 'active' : ''}`} onClick={() => { setPage(name); setOpen(false); }}><Icon size={17} strokeWidth={1.8} /><span>{name}</span>{name === 'Devices' && <i className="nav-indicator" />}</button>)}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={17} /></div><strong>Need a hand?</strong><span>Visit the help center for quick answers.</span><button>Open help center <ArrowUpRight size={13} /></button></div><button className="nav-link signout" onClick={onLogout}><LogOut size={17} />Sign out</button><div className="sidebar-foot"><span className="foot-avatar">SW</span><span><strong>School workspace</strong><small>Attendance dashboard · v1.0</small></span><ChevronDown size={14} /></div></div></aside></>; }
 function PageHeading({ eyebrow, title, subtitle, action }) { return <div className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{subtitle}</p></div>{action}</div>; }
 function StatCard({ title, value, note, icon: Icon, accent, spark }) { return <article className="stat-card"><div className="stat-top"><span>{title}</span><span className={`stat-icon ${accent}`}><Icon size={17} /></span></div><div className="stat-value">{value}</div><div className="stat-bottom"><span>{note}</span>{spark && <span className="sparkline" aria-hidden="true">▁▂▂▃▂▄▅▄▆▅▇</span>}</div></article>; }
 function AttendanceRows({ rows, students, devices, compact = false, onDelete }) {
@@ -234,6 +241,10 @@ export default function App() {
   const attendance = useCollection(listAttendance, [], watchAttendance, dataEnabled);
   const devices = useCollection(listDevices, [], watchDevices, dataEnabled);
   const deviceUsers = useCollection(listDeviceUsers, [], watchDeviceUsers, dataEnabled);
+  const teachers = useCollection(listTeachers, [], watchTeachers, dataEnabled);
+  const marks = useCollection(async () => [], [], watchMarks, dataEnabled);
+  const punchIndex = useMemo(() => buildPunchIndex(attendance.data, students.data, teachers.data), [attendance.data, students.data, teachers.data]);
+  const marksMap = useMemo(() => marksIndex(marks.data), [marks.data]);
   async function login(type, values) {
     if (!auth) {
       setAuthError('Authentication service is not ready. Please refresh the page.');
@@ -244,7 +255,7 @@ export default function App() {
       if (type === 'google') {
         await signInWithPopup(auth, googleProvider);
       } else if (type === 'signup') {
-        await createUserWithEmailAndPassword(auth, values.email, values.password);
+        throw new Error('Sign-up is closed. Ask your administrator to create your account.');
       } else {
         await signInWithEmailAndPassword(auth, values.email, values.password);
       }
@@ -266,7 +277,7 @@ export default function App() {
   if (!authReady) return <div className="boot-screen"><span className="spinner" />Checking your session…</div>;
   if (!user) return <Login onLogin={login} error={authError} />;
   const apiBase = (import.meta.env.VITE_PUBLIC_API_BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
-  const schoolPages = ['Teachers', 'Classes & Sections', 'Reports', 'Settings'];
-  const content = page === 'Dashboard' ? <Dashboard students={students} attendance={attendance} devices={devices} deviceUsers={deviceUsers} user={user} /> : page === 'Students' ? <Students students={students} attendance={attendance} devices={devices} /> : page === 'Attendance' ? <Attendance students={students} attendance={attendance} devices={devices} /> : schoolPages.includes(page) ? <SchoolManagement page={page} user={user} apiBase={apiBase} /> : page === 'Devices' ? <Devices devices={devices} deviceUsers={deviceUsers} attendance={attendance} user={user} apiBase={apiBase} /> : page === 'Device Enrollment' ? <DeviceEnrollment user={user} devices={devices} students={students} deviceUsers={deviceUsers} apiBase={apiBase} /> : page === 'API Management' ? <ApiManagement user={user} /> : <Placeholder page={page} />;
+  const schoolPages = ['Classes & Sections', 'Reports', 'Settings'];
+  const content = page === 'Dashboard' ? <Dashboard students={students} attendance={attendance} devices={devices} deviceUsers={deviceUsers} user={user} /> : page === 'Students' ? <PeoplePage kind="student" students={students} teachers={teachers} attendance={attendance} punchIndex={punchIndex} marksMap={marksMap} /> : page === 'Teachers' ? <PeoplePage kind="teacher" students={students} teachers={teachers} attendance={attendance} punchIndex={punchIndex} marksMap={marksMap} /> : page === 'Attendance' ? <AttendancePage students={students} teachers={teachers} attendance={attendance} devices={devices} punchIndex={punchIndex} marksMap={marksMap} /> : schoolPages.includes(page) ? <SchoolManagement page={page} user={user} apiBase={apiBase} /> : page === 'Devices' ? <Devices devices={devices} deviceUsers={deviceUsers} attendance={attendance} user={user} apiBase={apiBase} /> : page === 'Device Enrollment' ? <DeviceEnrollment user={user} devices={devices} students={students} deviceUsers={deviceUsers} apiBase={apiBase} /> : page === 'API Management' ? <ApiManagement user={user} /> : <Placeholder page={page} />;
   return <div className="app-shell"><Sidebar page={page} setPage={setPage} onLogout={logout} open={sidebarOpen} setOpen={setSidebarOpen} role={currentRole} /><main className="main-area"><Header title={page} user={user} onLogout={logout} onMenu={() => setSidebarOpen(true)} /><div className="page-content">{content}<footer className="page-footer"><span>© {new Date().getFullYear()} School Attendance</span><span>Attendance workspace <i /> Secure session</span></footer></div></main></div>;
 }

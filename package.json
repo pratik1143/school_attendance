@@ -15,6 +15,7 @@
     "backend:test": "node --experimental-strip-types --test backend/tests/*.test.ts",
     "backend:test-client": "node --env-file-if-exists=backend/.env --experimental-strip-types backend/scripts/test-tcp-client.ts",
     "create-user": "node --experimental-strip-types backend/scripts/create-user.ts",
+    "assign-tenant": "node --env-file-if-exists=backend/.env --experimental-strip-types backend/scripts/assign-tenant.ts",
     "set-admin": "node --env-file-if-exists=backend/.env --experimental-strip-types backend/scripts/set-admin-claim.ts",
     "webhook:test-server": "node --experimental-strip-types backend/scripts/test-webhook-server.ts"
   },
